@@ -10,7 +10,7 @@ extern crate indicatif;
 extern crate log;
 extern crate mimalloc;
 extern crate rayon;
-extern crate regex;
+extern crate fancy_regex as regex;
 
 extern crate vanity_gpg;
 
@@ -325,7 +325,7 @@ fn main() -> Result<(), Error> {
             let mut report_counter: usize = 0;
             loop {
                 let fingerprint = key.get_fingerprint();
-                if pattern.is_match(&fingerprint) {
+                if pattern.is_match(&fingerprint).unwrap() {
                     warn!("({}): [{}] matched", thread_id, &fingerprint);
                     counter_cloned.count_success();
                     key.save_key(&user_id_cloned, dry_run).unwrap_or(());
