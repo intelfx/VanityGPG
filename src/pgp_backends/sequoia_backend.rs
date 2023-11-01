@@ -89,7 +89,10 @@ impl Backend for SequoiaBackend {
             .set_key_flags(KeyFlags::empty().set_certification().set_signing())?
             .set_signature_creation_time(creation_time)?
             .set_key_validity_period(None)?
-            .set_preferred_hash_algorithms(vec![HashAlgorithm::SHA512, HashAlgorithm::SHA256])?
+            .set_preferred_hash_algorithms(vec![
+                HashAlgorithm::SHA512,
+                HashAlgorithm::SHA256,
+            ])?
             .set_preferred_symmetric_algorithms(vec![
                 SymmetricAlgorithm::AES256,
                 SymmetricAlgorithm::AES128,
