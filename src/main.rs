@@ -94,6 +94,12 @@ struct Opts {
         help = "Regex pattern for matching fingerprints"
     )]
     pattern: Option<String>,
+    #[clap(
+    short = 'm',
+    long = "min-score",
+    help = "Minimum score (according to user scoring function) to match"
+    )]
+    min_score: Option<u32>,
     /// Cipher suite
     #[clap(
         short = 'c',
@@ -293,11 +299,19 @@ impl<B: Backend> Key<B> {
     }
 }
 
-fn do_match(fingerprint: &str, pattern: &Option<Regex>) -> Result<Match<u32>, regex::Error> {
+fn do_match(fingerprint: &str, pattern: &Option<Regex>, min_score: Option<u32>) -> Result<Match<u32>, regex::Error> {
     pattern
         .as_ref()
         .map_or(Ok(true), |pattern| pattern.is_match(fingerprint))
         .map(|is_match| if is_match { score(fingerprint) } else { Match::No })
+        .map(|score| {
+            if let (Some(min_score), Match::Yes(score)) = (min_score, score) {
+                if score < min_score {
+                    return Match::No;
+                }
+            }
+            score
+        })
 }
 
 /// Start the program
@@ -336,7 +350,7 @@ fn main() -> Result<(), Error> {
             let mut report_counter: usize = 0;
             loop {
                 let fingerprint = key.get_fingerprint();
-                if let Match::Yes(score) = do_match(&fingerprint, &pattern).unwrap() {
+                if let Match::Yes(score) = do_match(&fingerprint, &pattern, opts.min_score).unwrap() {
                     let fingerprint0 = &fingerprint[0..fingerprint.len()-8];
                     let fingerprint8 = &fingerprint[fingerprint.len()-8..];
                     warn!("({}): [{} {}] matched (score={})", thread_id, &fingerprint0, &fingerprint8, score);
