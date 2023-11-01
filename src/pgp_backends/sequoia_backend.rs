@@ -79,7 +79,6 @@ impl Backend for SequoiaBackend {
     fn get_armored_results(mut self, uid: &UserID) -> Result<ArmoredKey, UniversalError> {
         let creation_time = UNIX_EPOCH + Duration::from_secs(self.timestamp as u64);
         self.primary_key.set_creation_time(creation_time)?;
-        let mut packets = Vec::<Packet>::new();
         let mut signer = self.primary_key.clone().into_keypair()?;
         let primary_key_packet = Key::V4(self.primary_key);
 
@@ -96,11 +95,12 @@ impl Backend for SequoiaBackend {
                 SymmetricAlgorithm::AES128,
             ])?
             .sign_direct_key(&mut signer, Some(primary_key_packet.parts_as_public()))?;
-        packets.push(Packet::SecretKey(primary_key_packet));
-        packets.push(direct_key_signature.clone().into());
 
         // Build certificate
-        let mut cert = Cert::from_packets(packets.into_iter())?;
+        let mut cert = Cert::from_packets([
+            Packet::SecretKey(primary_key_packet),
+            direct_key_signature.clone().into(),
+        ].into_iter())?;
 
         // UID
         if let Some(uid_string) = uid.get_id() {
@@ -111,7 +111,10 @@ impl Backend for SequoiaBackend {
                 .set_hash_algo(HashAlgorithm::SHA512);
             let uid_packet = SequoiaUserID::from(uid_string);
             let uid_signature = uid_packet.bind(&mut signer, &cert, uid_signature_builder)?;
-            cert = cert.insert_packets(vec![Packet::from(uid_packet), uid_signature.into()])?;
+            cert = cert.insert_packets([
+                Packet::from(uid_packet),
+                uid_signature.into(),
+            ].into_iter())?;
         }
 
         // Encryption subkey
@@ -127,10 +130,10 @@ impl Backend for SequoiaBackend {
             .set_key_flags(KeyFlags::empty().set_storage_encryption().set_transport_encryption())?
             .set_key_validity_period(None)?;
         let subkey_signature = subkey_packet.bind(&mut signer, &cert, subkey_signature_builder)?;
-        cert = cert.insert_packets(vec![
+        cert = cert.insert_packets([
             Packet::SecretSubkey(subkey_packet),
             subkey_signature.into(),
-        ])?;
+        ].into_iter())?;
 
         if cert.unknowns().next().is_none() {
             // Get armored texts
