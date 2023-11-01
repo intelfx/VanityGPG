@@ -107,13 +107,13 @@ impl Backend for SequoiaBackend {
 
         // UID
         if let Some(uid_string) = uid.get_id() {
-            let uid_signature_builder = SignatureBuilder::from(direct_key_signature)
+            let uid_packet = SequoiaUserID::from(uid_string);
+            let uid_signature = SignatureBuilder::from(direct_key_signature)
                 .set_signature_creation_time(creation_time)?
                 .set_revocation_key(vec![])? // Remove revocation certificate
                 .set_type(SignatureType::PositiveCertification)
-                .set_hash_algo(HashAlgorithm::SHA512);
-            let uid_packet = SequoiaUserID::from(uid_string);
-            let uid_signature = uid_packet.bind(&mut signer, &cert, uid_signature_builder)?;
+                .set_hash_algo(HashAlgorithm::SHA512)
+                .sign_userid_binding(&mut signer, cert.primary_key().key(), &uid_packet)?;
             cert = cert.insert_packets([
                 Packet::from(uid_packet),
                 uid_signature.into(),
@@ -126,13 +126,13 @@ impl Backend for SequoiaBackend {
             .role_into_subordinate();
         subkey.set_creation_time(creation_time)?;
         let subkey_packet = Key::V4(subkey);
-        let subkey_signature_builder = SignatureBuilder::new(SignatureType::SubkeyBinding)
+        let subkey_signature = SignatureBuilder::new(SignatureType::SubkeyBinding)
             .set_signature_creation_time(creation_time)?
             .set_hash_algo(HashAlgorithm::SHA512)
             .set_features(Features::sequoia())?
             .set_key_flags(KeyFlags::empty().set_storage_encryption().set_transport_encryption())?
-            .set_key_validity_period(None)?;
-        let subkey_signature = subkey_packet.bind(&mut signer, &cert, subkey_signature_builder)?;
+            .set_key_validity_period(None)?
+            .sign_subkey_binding(&mut signer, cert.primary_key().key(), &subkey_packet)?;
         cert = cert.insert_packets([
             Packet::SecretSubkey(subkey_packet),
             subkey_signature.into(),
