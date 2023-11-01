@@ -39,7 +39,58 @@ pub enum Match<T> {
 }
 
 pub fn score(fingerprint: &str) -> Match<u32> {
-    Match::Yes(0)
+    let fpr = fingerprint.as_bytes();
+    let len = fpr.len();
+    let a = &fpr[len-8..len-6];
+    let b = &fpr[len-6..len-4];
+    let c = &fpr[len-4..len-2];
+    let d = &fpr[len-2..len-0];
+
+    let matcher: Box<dyn Fn(&[u8; 2]) -> bool>;
+    let mut score= 0;
+    if a[0] == b[0] && b[0] == c[0] && c[0] == d[0] {
+        matcher = Box::new(|arg| arg[0] == a[0]);
+    } else if a[1] == b[1] && b[1] == c[1] && c[1] == d[1] {
+        matcher = Box::new(|arg| arg[1] == a[1]);
+    } else {
+        return Match::No;
+    }
+
+    for x in fpr[0..len-8].chunks_exact(2) {
+        if matcher(x.try_into().unwrap()) {
+            score += 1;
+        }
+    }
+
+    if a == b && b == c && c == d {
+        score += 256;
+        for x in fpr[0..len-8].chunks_exact(2) {
+            if x == a { score += 2; }
+        }
+    } else if a == b && c == d || a == c && b == d {
+        assert_ne!(a, d);
+        score += 128;
+        let mut scores = [score; 2];
+        for x in fpr[0..len-8].chunks_exact(2) {
+                 if x == a { scores[0] += 2; }
+            else if x == d { scores[1] += 2; }
+        }
+        score = scores.into_iter().max().unwrap();
+    } else if a == b || c == d || a == c || b == d {
+        score += 64;
+        let mut scores = [score; 4];
+        for x in fpr[0..len-8].chunks_exact(2) {
+                 if x == a { scores[0] += 2; }
+            else if x == b { scores[1] += 2; }
+            else if x == c { scores[2] += 2; }
+            else if x == d { scores[3] += 2; }
+        }
+        score = scores.into_iter().max().unwrap();
+    } else {
+        return Match::No;
+    }
+
+    Match::Yes(score)
 }
 
 #[cfg(test)]
