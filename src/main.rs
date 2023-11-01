@@ -275,14 +275,16 @@ impl<B: Backend> Key<B> {
             return Ok(());
         }
         let fingerprint = self.get_fingerprint();
-        info!("saving [{}]", &fingerprint);
+        let fingerprint0 = &fingerprint[0..fingerprint.len()-8];
+        let fingerprint8 = &fingerprint[fingerprint.len()-8..];
+        info!("saving [{} {}]", &fingerprint0, &fingerprint8);
         let armored_keys = self.backend.get_armored_results(user_id)?;
         save_file(
-            format!("{}-private.asc", &fingerprint),
+            format!("{}_{}-private.asc", &fingerprint0, &fingerprint8),
             armored_keys.get_private_key(),
         )?;
         save_file(
-            format!("{}-public.asc", &fingerprint),
+            format!("{}_{}-public.asc", &fingerprint0, &fingerprint8),
             armored_keys.get_public_key(),
         )?;
         Ok(())
@@ -326,7 +328,9 @@ fn main() -> Result<(), Error> {
             loop {
                 let fingerprint = key.get_fingerprint();
                 if pattern.is_match(&fingerprint).unwrap() {
-                    warn!("({}): [{}] matched", thread_id, &fingerprint);
+                    let fingerprint0 = &fingerprint[0..fingerprint.len()-8];
+                    let fingerprint8 = &fingerprint[fingerprint.len()-8..];
+                    warn!("({}): [{} {}] matched", thread_id, &fingerprint0, &fingerprint8);
                     counter.count_success();
                     key.save_key(&user_id, opts.dry_run).unwrap_or(());
                     key = Key::new(DefaultBackend::new(cipher_suite.clone()).unwrap());
