@@ -124,7 +124,7 @@ impl Backend for SequoiaBackend {
             .set_signature_creation_time(creation_time)?
             .set_hash_algo(HashAlgorithm::SHA512)
             .set_features(Features::sequoia())?
-            .set_key_flags(KeyFlags::empty().set_storage_encryption())?
+            .set_key_flags(KeyFlags::empty().set_storage_encryption().set_transport_encryption())?
             .set_key_validity_period(None)?;
         let subkey_signature = subkey_packet.bind(&mut signer, &cert, subkey_signature_builder)?;
         cert = cert.insert_packets(vec![
