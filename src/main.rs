@@ -317,7 +317,7 @@ fn main() -> Result<(), Error> {
         let pattern = Regex::new(&opts.pattern)?;
         let dry_run = opts.dry_run;
         let cipher_suite = CipherSuite::from(&opts.cipher_suite);
-        let counter_cloned = Arc::clone(&counter);
+        let counter = Arc::clone(&counter);
         info!("({}): Spawning thread", thread_id);
         pool.spawn(move || {
             let mut key = Key::new(DefaultBackend::new(cipher_suite.clone()).unwrap());
@@ -327,7 +327,7 @@ fn main() -> Result<(), Error> {
                 let fingerprint = key.get_fingerprint();
                 if pattern.is_match(&fingerprint).unwrap() {
                     warn!("({}): [{}] matched", thread_id, &fingerprint);
-                    counter_cloned.count_success();
+                    counter.count_success();
                     key.save_key(&user_id, dry_run).unwrap_or(());
                     key = Key::new(DefaultBackend::new(cipher_suite.clone()).unwrap());
                     reshuffle_counter = KEY_RESHUFFLE_LIMIT;
@@ -345,7 +345,7 @@ fn main() -> Result<(), Error> {
                 }
                 report_counter += 1;
                 if report_counter >= COUNTER_THRESHOLD {
-                    counter_cloned.count_total(report_counter);
+                    counter.count_total(report_counter);
                     report_counter = 0;
                 }
             }
