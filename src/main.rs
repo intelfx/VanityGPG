@@ -330,6 +330,7 @@ fn main() -> Result<(), Error> {
                     counter_cloned.count_success();
                     key.save_key(&user_id_cloned, dry_run).unwrap_or(());
                     key = Key::new(DefaultBackend::new(cipher_suite.clone()).unwrap());
+                    reshuffle_counter = KEY_RESHUFFLE_LIMIT;
                 } else if reshuffle_counter == 0 {
                     info!(
                         "({}): Reshuffle limit reached, generating new primary key",
