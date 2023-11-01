@@ -311,10 +311,11 @@ fn main() -> Result<(), Error> {
         .num_threads(opts.jobs + 1)
         .build()?;
     let user_id = UserID::from(opts.user_id);
+    let pattern = Regex::new(&opts.pattern)?;
 
     for thread_id in 0..opts.jobs {
         let user_id = user_id.clone();
-        let pattern = Regex::new(&opts.pattern)?;
+        let pattern = pattern.clone();
         let cipher_suite = CipherSuite::from(&opts.cipher_suite);
         let counter = Arc::clone(&counter);
         info!("({}): Spawning thread", thread_id);
