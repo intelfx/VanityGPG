@@ -32,6 +32,16 @@ pub use pgp_backends::RPGPBackend;
 pub use pgp_backends::SequoiaBackend;
 pub use pgp_backends::{ArmoredKey, Backend, CipherSuite, DefaultBackend, UserID};
 
+#[derive(Copy, Clone)]
+pub enum Match<T> {
+    Yes(T),
+    No,
+}
+
+pub fn score(fingerprint: &str) -> Match<u32> {
+    Match::Yes(0)
+}
+
 #[cfg(test)]
 mod meaningless_test {
     #[test]

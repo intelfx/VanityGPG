@@ -34,6 +34,8 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use vanity_gpg::{Backend, CipherSuite, DefaultBackend, UserID};
+use vanity_gpg::Match;
+use vanity_gpg::score;
 
 use logger::{IndicatifBackend, ProgressLogger, ProgressLoggerBackend};
 
@@ -91,7 +93,7 @@ struct Opts {
         long = "pattern",
         help = "Regex pattern for matching fingerprints"
     )]
-    pattern: String,
+    pattern: Option<String>,
     /// Cipher suite
     #[clap(
         short = 'c',
@@ -270,25 +272,32 @@ impl<B: Backend> Key<B> {
     }
 
     /// Save armored keys
-    fn save_key(self, user_id: &UserID, dry_run: bool) -> Result<(), Error> {
+    fn save_key(self, user_id: &UserID, dry_run: bool, score: u32) -> Result<(), Error> {
         if dry_run {
             return Ok(());
         }
         let fingerprint = self.get_fingerprint();
         let fingerprint0 = &fingerprint[0..fingerprint.len()-8];
         let fingerprint8 = &fingerprint[fingerprint.len()-8..];
-        info!("saving [{} {}]", &fingerprint0, &fingerprint8);
+        info!("saving [{} {}] (score={})", &fingerprint0, &fingerprint8, score);
         let armored_keys = self.backend.get_armored_results(user_id)?;
         save_file(
-            format!("{}_{}-private.asc", &fingerprint0, &fingerprint8),
+            format!("score{}-{}_{}-private.asc", score, &fingerprint0, &fingerprint8),
             armored_keys.get_private_key(),
         )?;
         save_file(
-            format!("{}_{}-public.asc", &fingerprint0, &fingerprint8),
+            format!("score{}-{}_{}-public.asc", score, &fingerprint0, &fingerprint8),
             armored_keys.get_public_key(),
         )?;
         Ok(())
     }
+}
+
+fn do_match(fingerprint: &str, pattern: &Option<Regex>) -> Result<Match<u32>, regex::Error> {
+    pattern
+        .as_ref()
+        .map_or(Ok(true), |pattern| pattern.is_match(fingerprint))
+        .map(|is_match| if is_match { score(fingerprint) } else { Match::No })
 }
 
 /// Start the program
@@ -313,7 +322,7 @@ fn main() -> Result<(), Error> {
         .num_threads(opts.jobs + 1)
         .build()?;
     let user_id = UserID::from(opts.user_id);
-    let pattern = Regex::new(&opts.pattern)?;
+    let pattern = opts.pattern.as_ref().map_or(Ok(None), |s| Regex::new(s).map(Some))?;
 
     for thread_id in 0..opts.jobs {
         let user_id = user_id.clone();
@@ -327,12 +336,12 @@ fn main() -> Result<(), Error> {
             let mut report_counter: usize = 0;
             loop {
                 let fingerprint = key.get_fingerprint();
-                if pattern.is_match(&fingerprint).unwrap() {
+                if let Match::Yes(score) = do_match(&fingerprint, &pattern).unwrap() {
                     let fingerprint0 = &fingerprint[0..fingerprint.len()-8];
                     let fingerprint8 = &fingerprint[fingerprint.len()-8..];
-                    warn!("({}): [{} {}] matched", thread_id, &fingerprint0, &fingerprint8);
+                    warn!("({}): [{} {}] matched (score={})", thread_id, &fingerprint0, &fingerprint8, score);
                     counter.count_success();
-                    key.save_key(&user_id, opts.dry_run).unwrap_or(());
+                    key.save_key(&user_id, opts.dry_run, score).unwrap_or(());
                     key = Key::new(DefaultBackend::new(cipher_suite.clone()).unwrap());
                     reshuffle_counter = KEY_RESHUFFLE_LIMIT;
                 } else if reshuffle_counter == 0 {
