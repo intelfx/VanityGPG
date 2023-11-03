@@ -132,18 +132,20 @@ impl Backend for SequoiaBackend {
         }
 
         // Encryption subkey
-        let mut subkey = generate_key(self.cipher_suite.get_encryption_key_algorithm(), false)?
-            .parts_into_secret()?
-            .role_into_subordinate();
-        subkey.set_creation_time(creation_time)?;
-        let subkey_packet = Key::V4(subkey);
-        let subkey_signature = sb_new(SignatureType::SubkeyBinding, creation_time)?
-            .set_key_flags(KeyFlags::empty().set_storage_encryption().set_transport_encryption())?
-            .sign_subkey_binding(&mut signer, cert.primary_key().key(), &subkey_packet)?;
-        cert = cert.insert_packets([
-            Packet::SecretSubkey(subkey_packet),
-            subkey_signature.into(),
-        ].into_iter())?;
+        {
+            let mut subkey = generate_key(self.cipher_suite.get_encryption_key_algorithm(), false)?
+                .parts_into_secret()?
+                .role_into_subordinate();
+            subkey.set_creation_time(creation_time)?;
+            let subkey_packet = Key::V4(subkey);
+            let subkey_signature = sb_new(SignatureType::SubkeyBinding, creation_time)?
+                .set_key_flags(KeyFlags::empty().set_storage_encryption().set_transport_encryption())?
+                .sign_subkey_binding(&mut signer, cert.primary_key().key(), &subkey_packet)?;
+            cert = cert.insert_packets([
+                Packet::SecretSubkey(subkey_packet),
+                subkey_signature.into(),
+            ].into_iter())?;
+        }
 
         if cert.unknowns().next().is_none() {
             // Get armored texts
