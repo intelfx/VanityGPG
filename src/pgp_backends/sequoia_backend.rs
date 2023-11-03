@@ -242,11 +242,11 @@ mod sequoia_backend_test {
 
         let mut primary_key = backend.get_primary_key();
         primary_key
-            .set_creation_time(UNIX_EPOCH.clone() + Duration::from_secs(timestamp_before))
+            .set_creation_time(UNIX_EPOCH + Duration::from_secs(timestamp_before))
             .unwrap();
         let fingerprint_sequoia_before = primary_key.fingerprint().to_hex();
         primary_key
-            .set_creation_time(UNIX_EPOCH.clone() + Duration::from_secs(timestamp_after))
+            .set_creation_time(UNIX_EPOCH + Duration::from_secs(timestamp_after))
             .unwrap();
         let fingerprint_sequoia_after = primary_key.fingerprint().to_hex();
 
@@ -316,11 +316,11 @@ mod sequoia_backend_test {
 
         let mut primary_key = backend.get_primary_key();
         primary_key
-            .set_creation_time(UNIX_EPOCH.clone() + Duration::from_secs(timestamp_before))
+            .set_creation_time(UNIX_EPOCH + Duration::from_secs(timestamp_before))
             .unwrap();
         let fingerprint_sequoia_before = primary_key.fingerprint().to_hex();
         primary_key
-            .set_creation_time(UNIX_EPOCH.clone() + Duration::from_secs(timestamp_after))
+            .set_creation_time(UNIX_EPOCH + Duration::from_secs(timestamp_after))
             .unwrap();
         let fingerprint_sequoia_after = primary_key.fingerprint().to_hex();
 
