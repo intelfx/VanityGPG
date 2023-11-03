@@ -339,7 +339,7 @@ mod sequoia_backend_test {
         assert!(!results.get_public_key().is_empty());
 
         let mut cursor = Cursor::new(results.get_private_key());
-        let mut reader = Reader::new(&mut cursor, ReaderMode::VeryTolerant);
+        let mut reader = Reader::from_reader(&mut cursor, ReaderMode::VeryTolerant);
         let mut content = Vec::new();
         reader.read_to_end(&mut content).unwrap();
         let cert = Cert::from_bytes(&content).unwrap();
