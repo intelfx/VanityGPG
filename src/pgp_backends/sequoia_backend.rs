@@ -101,7 +101,7 @@ impl Backend for SequoiaBackend {
 
         // Direct key signature and the secret key
         let direct_key_signature = sb_new(SignatureType::DirectKey, creation_time)?
-            .set_key_flags(KeyFlags::empty().set_certification().set_signing())?
+            .set_key_flags(KeyFlags::empty().set_certification())?
             .set_features(Features::sequoia())?
             .set_preferred_hash_algorithms(vec![
                 HashAlgorithm::SHA512,
@@ -131,15 +131,29 @@ impl Backend for SequoiaBackend {
             ].into_iter())?;
         }
 
-        // Encryption subkey
-        {
-            let mut subkey = generate_key(self.cipher_suite.get_encryption_key_algorithm(), false)?
+        // Subkeys: signing, then encryption
+        for (for_signing, key_flags) in [
+            (true, KeyFlags::empty().set_signing()),
+            (false, KeyFlags::empty().set_storage_encryption().set_transport_encryption()),
+        ] {
+            let mut subkey = generate_key(self.cipher_suite.get_encryption_key_algorithm(), for_signing)?
                 .parts_into_secret()?
                 .role_into_subordinate();
             subkey.set_creation_time(creation_time)?;
             let subkey_packet = Key::V4(subkey);
             let subkey_signature = sb_new(SignatureType::SubkeyBinding, creation_time)?
-                .set_key_flags(KeyFlags::empty().set_storage_encryption().set_transport_encryption())?
+                .set_key_flags(key_flags)
+                .and_then(|sb| {
+                    if for_signing {
+                        let mut sk_signer = subkey_packet.clone().into_keypair()?;
+                        sb.set_embedded_signature({
+                            sb_new(SignatureType::PrimaryKeyBinding, creation_time)?
+                                .sign_primary_key_binding(&mut sk_signer, cert.primary_key().key(), &subkey_packet)?
+                        })
+                    } else {
+                        Ok(sb)
+                    }
+                })?
                 .sign_subkey_binding(&mut signer, cert.primary_key().key(), &subkey_packet)?;
             cert = cert.insert_packets([
                 Packet::SecretSubkey(subkey_packet),
