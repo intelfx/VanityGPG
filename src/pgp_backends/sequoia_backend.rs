@@ -9,6 +9,7 @@ use sequoia_openpgp::armor::{Kind, Writer};
 use sequoia_openpgp::packet::key::{Key4, PrimaryRole, SecretParts};
 use sequoia_openpgp::packet::signature::SignatureBuilder;
 use sequoia_openpgp::packet::Key;
+use sequoia_openpgp::packet::Signature;
 use sequoia_openpgp::packet::UserID as SequoiaUserID;
 use sequoia_openpgp::serialize::{MarshalInto, SerializeInto};
 use sequoia_openpgp::types::{
@@ -22,6 +23,7 @@ use super::{
 };
 
 use std::io::Write;
+use std::time::SystemTime;
 use std::time::Duration;
 use std::time::UNIX_EPOCH;
 
@@ -60,6 +62,21 @@ fn generate_key(
     }
 }
 
+fn sb_new(typ: SignatureType, creation_time: SystemTime) -> Result<SignatureBuilder, anyhow::Error> {
+    SignatureBuilder::new(typ)
+        .set_hash_algo(HashAlgorithm::SHA512)
+        .set_signature_creation_time(creation_time)?
+        .set_key_validity_period(None)
+}
+
+fn sb_from(sig: Signature, typ: SignatureType, creation_time: SystemTime) -> Result<SignatureBuilder, anyhow::Error> {
+    SignatureBuilder::from(sig)
+        .set_type(typ)
+        .set_hash_algo(HashAlgorithm::SHA512)
+        .set_signature_creation_time(creation_time)?
+        .set_key_validity_period(None)
+}
+
 impl Backend for SequoiaBackend {
     fn fingerprint(&self) -> String {
         let mut hasher = Sha1::default();
@@ -83,12 +100,9 @@ impl Backend for SequoiaBackend {
         let primary_key_packet = Key::V4(self.primary_key);
 
         // Direct key signature and the secret key
-        let direct_key_signature = SignatureBuilder::new(SignatureType::DirectKey)
-            .set_hash_algo(HashAlgorithm::SHA512)
-            .set_features(Features::sequoia())?
+        let direct_key_signature = sb_new(SignatureType::DirectKey, creation_time)?
             .set_key_flags(KeyFlags::empty().set_certification().set_signing())?
-            .set_signature_creation_time(creation_time)?
-            .set_key_validity_period(None)?
+            .set_features(Features::sequoia())?
             .set_preferred_hash_algorithms(vec![
                 HashAlgorithm::SHA512,
                 HashAlgorithm::SHA256,
@@ -108,11 +122,8 @@ impl Backend for SequoiaBackend {
         // UID
         if let Some(uid_string) = uid.get_id() {
             let uid_packet = SequoiaUserID::from(uid_string);
-            let uid_signature = SignatureBuilder::from(direct_key_signature)
-                .set_signature_creation_time(creation_time)?
+            let uid_signature = sb_from(direct_key_signature, SignatureType::PositiveCertification, creation_time)?
                 .set_revocation_key(vec![])? // Remove revocation certificate
-                .set_type(SignatureType::PositiveCertification)
-                .set_hash_algo(HashAlgorithm::SHA512)
                 .sign_userid_binding(&mut signer, cert.primary_key().key(), &uid_packet)?;
             cert = cert.insert_packets([
                 Packet::from(uid_packet),
@@ -126,12 +137,8 @@ impl Backend for SequoiaBackend {
             .role_into_subordinate();
         subkey.set_creation_time(creation_time)?;
         let subkey_packet = Key::V4(subkey);
-        let subkey_signature = SignatureBuilder::new(SignatureType::SubkeyBinding)
-            .set_signature_creation_time(creation_time)?
-            .set_hash_algo(HashAlgorithm::SHA512)
-            .set_features(Features::sequoia())?
+        let subkey_signature = sb_new(SignatureType::SubkeyBinding, creation_time)?
             .set_key_flags(KeyFlags::empty().set_storage_encryption().set_transport_encryption())?
-            .set_key_validity_period(None)?
             .sign_subkey_binding(&mut signer, cert.primary_key().key(), &subkey_packet)?;
         cert = cert.insert_packets([
             Packet::SecretSubkey(subkey_packet),
