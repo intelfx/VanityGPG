@@ -123,12 +123,13 @@ impl Backend for SequoiaBackend {
         if let Some(uid_string) = uid.get_id() {
             let uid_packet = SequoiaUserID::from(uid_string);
             let uid_signature = sb_from(direct_key_signature, SignatureType::PositiveCertification, creation_time)?
-                .set_revocation_key(vec![])? // Remove revocation certificate
                 .sign_userid_binding(&mut signer, cert.primary_key().key(), &uid_packet)?;
-            cert = cert.insert_packets([
-                Packet::from(uid_packet),
-                uid_signature.into(),
-            ].into_iter())?;
+            cert = cert
+                .insert_packets([
+                    Packet::from(uid_packet),
+                    uid_signature.into(),
+                ].into_iter())?
+                .0;
         }
 
         // Subkeys: signing, then encryption
@@ -156,10 +157,12 @@ impl Backend for SequoiaBackend {
                     }
                 })?
                 .sign_subkey_binding(&mut signer, cert.primary_key().key(), &subkey_packet)?;
-            cert = cert.insert_packets([
-                Packet::SecretSubkey(subkey_packet),
-                subkey_signature.into(),
-            ].into_iter())?;
+            cert = cert
+                .insert_packets([
+                    Packet::SecretSubkey(subkey_packet),
+                    subkey_signature.into(),
+                ].into_iter())?
+                .0;
         }
 
         if cert.unknowns().next().is_none() {
@@ -295,7 +298,7 @@ mod sequoia_backend_test {
             .is_empty());
         for uid_after in cert.userids() {
             assert_eq!(
-                String::from_utf8_lossy(uid_after.value()),
+                String::from_utf8_lossy(uid_after.userid().value()),
                 "Tiansuo Li <114514@example.com>"
             );
         }
@@ -369,7 +372,7 @@ mod sequoia_backend_test {
             .is_empty());
         for uid_after in cert.userids() {
             assert_eq!(
-                String::from_utf8_lossy(uid_after.value()),
+                String::from_utf8_lossy(uid_after.userid().value()),
                 "Tiansuo Li <114514@example.com>"
             );
         }
