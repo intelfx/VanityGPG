@@ -283,9 +283,10 @@ impl<B: Backend> Key<B> {
             return Ok(());
         }
         let fingerprint = self.get_fingerprint();
-        let fingerprint0 = &fingerprint[0..fingerprint.len()-8];
+        let fingerprint0 = &fingerprint[0..fingerprint.len()-16];
+        let fingerprint16 = &fingerprint[fingerprint.len()-16..fingerprint.len()-8];
         let fingerprint8 = &fingerprint[fingerprint.len()-8..];
-        info!("saving [{} {}] (score={})", &fingerprint0, &fingerprint8, score);
+        info!("saving [{} {} {}] (score={})", &fingerprint0, &fingerprint16, &fingerprint8, score);
         let armored_keys = self.backend.get_armored_results(user_id)?;
         save_file(
             format!("score{}-{}_{}-private.asc", score, &fingerprint0, &fingerprint8),
@@ -350,10 +351,12 @@ fn main() -> Result<(), Error> {
             let mut report_counter: usize = 0;
             loop {
                 let fingerprint = key.get_fingerprint();
+                let len = fingerprint.len();
                 if let Match::Yes(score) = do_match(&fingerprint, &pattern, opts.min_score).unwrap() {
-                    let fingerprint0 = &fingerprint[0..fingerprint.len()-8];
-                    let fingerprint8 = &fingerprint[fingerprint.len()-8..];
-                    warn!("({}): [{} {}] matched (score={})", thread_id, &fingerprint0, &fingerprint8, score);
+                    let fingerprint0 = &fingerprint[0..len-16];
+                    let fingerprint16 = &fingerprint[len-16..len-8];
+                    let fingerprint8 = &fingerprint[len-8..];
+                    warn!("({:2}): [{} {} {}] matched (score={})", thread_id, &fingerprint0, &fingerprint16, &fingerprint8, score);
                     counter.count_success();
                     key.save_key(&user_id, opts.dry_run, score).unwrap_or(());
                     key = Key::new(DefaultBackend::new(cipher_suite.clone()).unwrap());
