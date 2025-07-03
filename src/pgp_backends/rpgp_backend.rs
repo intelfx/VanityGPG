@@ -4,11 +4,13 @@
 
 use byteorder::{BigEndian, ByteOrder};
 use chrono::{DateTime, TimeZone, Utc};
+use pgp::ArmorOptions;
 use pgp::composed::{KeyDetails, SecretKey, SecretSubkey};
 use pgp::crypto::hash::HashAlgorithm;
 use pgp::crypto::public_key::PublicKeyAlgorithm;
 use pgp::crypto::sym::SymmetricKeyAlgorithm;
 use pgp::crypto::{ecdh, eddsa, rsa};
+use pgp::crypto::ecc_curve::ECCCurve;
 use pgp::key::KeyType;
 use pgp::packet::{
     KeyFlags, PublicKey as PublicKeyPacket, PublicSubkey as PublicSubkeyPacket,
@@ -83,7 +85,7 @@ fn generate_key(
                 if for_signing {
                     Ok((KeyType::EdDSA, Ok(eddsa::generate_key(&mut rng))))
                 } else {
-                    Ok((KeyType::ECDH, Ok(ecdh::generate_key(&mut rng))))
+                    Ok((KeyType::ECDH(ECCCurve::Curve25519), ecdh::generate_key(&mut rng, &ECCCurve::Curve25519)))
                 }
             }
             _ => Err(PGPError::AlgorithmNotSupportedByTheCurrentBackend(
@@ -230,8 +232,8 @@ impl Backend for RPGPBackend {
             .sign(&signed_secret_key, || "".to_string())?;
 
         Ok(ArmoredKey::new(
-            signed_public_key.to_armored_string(None)?,
-            signed_secret_key.to_armored_string(None)?,
+            signed_public_key.to_armored_string(ArmorOptions::default())?,
+            signed_secret_key.to_armored_string(ArmorOptions::default())?,
         ))
     }
 }
@@ -246,7 +248,7 @@ impl RPGPBackend {
             let timestamp = Utc::now().timestamp() as u32;
             let mut packet_cache: Vec<u8> = vec![0x99, 0, 0, 4, 0, 0, 0, 0]; // Version 4
             BigEndian::write_u32(&mut packet_cache[4..8], timestamp); // Timestamp
-            packet_cache.push(key_type.to_alg() as u8); // Algorithm identifier
+            packet_cache.push(key_type.to_alg().into()); // Algorithm identifier
             public_params
                 .to_writer(&mut packet_cache)
                 .expect("Failed to write public_params to packet cache");

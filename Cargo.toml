@@ -26,7 +26,7 @@ cc = "1.0"
 
 [dependencies]
 log = { version = "^0.4", features = [ "std" ] }
-pgp = { version = "^0.10", optional = true }
+pgp = { version = "^0.13", optional = true }
 clap = { version = "^4.3", features = [ "derive" ] }
 rand = { version = "^0.8", optional = true }
 rayon = "^1.7"
