@@ -289,11 +289,11 @@ impl<B: Backend> Key<B> {
         info!("saving [{} {} {}] (score={})", &fingerprint0, &fingerprint16, &fingerprint8, score);
         let armored_keys = self.backend.get_armored_results(user_id)?;
         save_file(
-            format!("score{}-{}_{}-private.asc", score, &fingerprint0, &fingerprint8),
+            format!("score{}-{}_{}_{}-private.asc", score, &fingerprint0, &fingerprint16, &fingerprint8),
             armored_keys.get_private_key(),
         )?;
         save_file(
-            format!("score{}-{}_{}-public.asc", score, &fingerprint0, &fingerprint8),
+            format!("score{}-{}_{}_{}-public.asc", score, &fingerprint0, &fingerprint16, &fingerprint8),
             armored_keys.get_public_key(),
         )?;
         Ok(())
