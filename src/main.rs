@@ -358,7 +358,9 @@ fn main() -> Result<(), Error> {
                     let fingerprint8 = &fingerprint[len-8..];
                     warn!("({:2}): [{} {} {}] matched (score={})", thread_id, &fingerprint0, &fingerprint16, &fingerprint8, score);
                     counter.count_success();
-                    key.save_key(&user_id, opts.dry_run, score).unwrap_or(());
+                    key.save_key(&user_id, opts.dry_run, score).unwrap_or_else(
+                        |e| warn!("({:2}): failed to save: {:?}", thread_id, e)
+                    );
                     key = Key::new(DefaultBackend::new(cipher_suite.clone()).unwrap());
                     reshuffle_counter = KEY_RESHUFFLE_LIMIT;
                 } else if reshuffle_counter == 0 {
