@@ -369,7 +369,7 @@ fn main() -> Result<(), Error> {
                     key = Key::new(DefaultBackend::new(cipher_suite.clone()).unwrap());
                     reshuffle_counter = KEY_RESHUFFLE_LIMIT;
                 } else {
-                    info!("({}): [{}] is not a match", thread_id, fingerprint);
+                    debug!("({}): [{}] is not a match", thread_id, fingerprint);
                     reshuffle_counter -= 1;
                     key.shuffle().unwrap_or(());
                 }
