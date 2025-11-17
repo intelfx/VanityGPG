@@ -134,6 +134,7 @@ impl Backend for SequoiaBackend {
         // Subkeys: signing, then encryption
         for (for_signing, key_flags) in [
             (true, KeyFlags::empty().set_signing()),
+            (true, KeyFlags::empty().set_authentication()),
             (false, KeyFlags::empty().set_storage_encryption().set_transport_encryption()),
         ] {
             let mut subkey = generate_key(self.cipher_suite.get_algorithm(!for_signing), for_signing)?
